@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import configparser
 
+
 config = configparser.ConfigParser()
 config.read('config.ini')
 
@@ -17,16 +18,14 @@ HEADER = {
 
 
 class PlayerData:
-    # TODO: get summoner data
-    #       save summoner data
 
     def __init__(self, name):
 
         self.name = name
         self.account_id = self.get_account_id_by_name()
         self.summoner_id = self.get_summoner_id_by_name()
-        self.get_matchlist_by_account_id()
-        self.get_league_data_by_summoner()
+        # self.get_matchlist_by_account_id()
+        # self.get_league_data_by_summoner()
 
     def get_summoner_id_by_name(self):
         """
@@ -48,9 +47,46 @@ class PlayerData:
 
         get_account_id = requests.get('https://br1.api.riotgames.com/lol/summoner/v4/summoners/by-name/{name}'.format(
             name=self.name), headers=HEADER)
+        print(get_account_id.json())
         print('{name} account_id = '.format(name=self.name) + get_account_id.json()['accountId'])
 
         return get_account_id.json()['accountId']
+
+    def get_matches_by_initial(self, initial_date):
+        """
+
+        :return:
+        """
+
+        from utils import create_weeks_ranges
+
+        weeks_ranges = create_weeks_ranges(initial_date)
+        URL = 'https://br1.api.riotgames.com/lol/match/v4/matchlists/by-account/'
+        matches = []
+        c = 0
+        for week_range in weeks_ranges:
+
+            get_match_list = requests.get(
+                f'{URL}{self.account_id}?endTime={week_range[-1]}&beginTime={week_range[0]}', headers=HEADER)
+
+            if get_match_list.status_code == 200:
+                print(week_range)
+                print(get_match_list.json())
+                print(get_match_list.json()['totalGames'])
+                c+= get_match_list.json()['totalGames']
+                matches+= get_match_list.json()['matches']
+
+            else:
+                print(week_range)
+                print(get_match_list.json())
+
+        print(matches)
+        print(c)
+        from datetime import date
+        self.name = self.name + str(date.today())
+        self.save_match_list(matches)
+
+
 
     def get_matchlist_by_account_id(self):
         """
@@ -63,16 +99,16 @@ class PlayerData:
             headers=HEADER)
         print(get_match_list.json())
         print(len(get_match_list.json()['matches']))
-        self.save_matchlist(get_match_list.json())
+        self.save_match_list(get_match_list.json())
 
-    def save_matchlist(self, matchlist_ob):
+    def save_match_list(self, matchlist_ob):
         """
 
         :param matchlist_ob: matchlist object from get_matchlist_by_account_id
         :return: file saving confirmation
         """
 
-        df = pd.DataFrame(matchlist_ob['matches'])
+        df = pd.DataFrame(matchlist_ob)
         print(df.head(), df.size)
         df.to_csv(f'data/player_matchs/{self.name}.csv')
         print(f'file was saved in path: data/player_matchs/{self.name}.csv')
@@ -88,7 +124,8 @@ class PlayerData:
             headers=HEADER)
 
         # print(f'/lol/league/v4/entries/by-summoner/{self.summoner_id}')
-        print('summoner_data: '+ str(summoner_data.content))
+        print('summoner_data: ' + str(summoner_data.content))
+
 
 class MatchData:
 
@@ -96,8 +133,6 @@ class MatchData:
         self.name = name
         self.match_list = self.read_matchlist()
         self.matches_data = self.get_matches_data()
-
-
 
     def read_matchlist(self):
         """
@@ -109,7 +144,6 @@ class MatchData:
         print(match_list['gameId'].unique().tolist())
         return match_list['gameId'].unique().tolist()
 
-
     def get_matches_data(self):
         """
 
@@ -120,11 +154,18 @@ class MatchData:
         match_data_list = []
         for match in self.match_list:
             match_data = requests.get(f'https://br1.api.riotgames.com/lol/match/v4/matches/{match}', headers=HEADER)
-            match_data_list.append(match_data.json())
+            match_data = match_data.json()
+            match_data['timeline'] = self.get_match_timeline(match)
+            match_data_list.append(match_data)
 
         print(match_data_list)
         with open(f'data/matches/matches_raw/{self.name}_{str(date.today())}.txt', 'w') as outfile:
             json.dump(match_data_list, outfile)
 
-PlayerData('Daft Mind')
+    def get_match_timeline(self, match_id):
 
+
+        match_timeline = requests.get(f'https://br1.api.riotgames.com/lol/match/v4/timelines/by-match/{match_id}', headers=HEADER)
+        return match_timeline.json()
+
+PlayerData('ThankYouBoss').get_matches_by_initial('2021-01-01')
