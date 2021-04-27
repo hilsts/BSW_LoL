@@ -168,4 +168,4 @@ class MatchData:
         match_timeline = requests.get(f'https://br1.api.riotgames.com/lol/match/v4/timelines/by-match/{match_id}', headers=HEADER)
         return match_timeline.json()
 
-PlayerData('ThankYouBoss').get_matches_by_initial('2021-01-01')
+PlayerData('Tataba').get_matches_by_initial('2021-01-01')
