@@ -4,7 +4,7 @@ import configparser
 
 
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read('/Users/hilsts/Documents/codes/configs/bsw_lol_config.ini')
 
 API_KEY = config['API']['key']
 
@@ -49,7 +49,7 @@ class PlayerData:
             name=self.name), headers=HEADER)
         print(get_account_id.json())
         print('{name} account_id = '.format(name=self.name) + get_account_id.json()['accountId'])
-
+        self.puuid = get_account_id.json()['puuid']
         return get_account_id.json()['accountId']
 
     def get_matches_by_initial(self, initial_date):
@@ -61,20 +61,17 @@ class PlayerData:
         from utils import create_weeks_ranges
 
         weeks_ranges = create_weeks_ranges(initial_date)
-        URL = 'https://br1.api.riotgames.com/lol/match/v4/matchlists/by-account/'
+        URL = 'https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/'
         matches = []
         c = 0
         for week_range in weeks_ranges:
-
+            url = f'{URL}{self.puuid}/ids?startTime={int(week_range[0]/1000)}&endTime={int(week_range[-1]/1000)}'
             get_match_list = requests.get(
-                f'{URL}{self.account_id}?endTime={week_range[-1]}&beginTime={week_range[0]}', headers=HEADER)
+                url, headers=HEADER)
 
             if get_match_list.status_code == 200:
-                print(week_range)
-                print(get_match_list.json())
-                print(get_match_list.json()['totalGames'])
-                c+= get_match_list.json()['totalGames']
-                matches+= get_match_list.json()['matches']
+                
+                matches+= get_match_list.json()
 
             else:
                 print(week_range)
@@ -95,7 +92,7 @@ class PlayerData:
         """
 
         get_match_list = requests.get(
-            f'https://br1.api.riotgames.com/lol/match/v4/matchlists/by-account/{self.account_id}',
+            f'https://br1.api.riotgames.com/lol/match/v5/matches/by-puuid/{self.puuid}/ids',
             headers=HEADER)
         print(get_match_list.json())
         print(len(get_match_list.json()['matches']))
@@ -168,4 +165,4 @@ class MatchData:
         match_timeline = requests.get(f'https://br1.api.riotgames.com/lol/match/v4/timelines/by-match/{match_id}', headers=HEADER)
         return match_timeline.json()
 
-PlayerData('Tataba').get_matches_by_initial('2021-01-01')
+PlayerData('Eldian').get_matches_by_initial("2023-10-01")
